@@ -1,7 +1,7 @@
 {
   "name": "node-request-retry",
   "description": "A simple Node.js request wrapper for retrying http requests.",
-  "version": "0.0.2",
+  "version": "1.0.0",
   "author": {
     "name": "DoSomething.org",
     "email": "developers@dosomething.org",
