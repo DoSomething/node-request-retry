@@ -14,8 +14,8 @@ var RequestRetry = function() {
   // Number request retries attempted
   this.numRetries = 0;
 
-  // Array of response codes to attempt a retry with
-  this.retryCodes = [];
+  // Array of response codes and functions to evaluate and attempt a retry with
+  this.retryConditions = [];
 }
 
 /**
@@ -29,7 +29,7 @@ function _callback(err, response, body) {
 
   // If error is encountered or response is received with a code we can retry with,
   // and there are retries remaining, schedule a retry.
-  if ((err || (response && isRetryCode(this, response.statusCode))) &&
+  if ((err || (response && isRetryCondition(this, response, body))) &&
       this.numRetries < MAX_RETRIES) {
     this.numRetries++;
     setTimeout(this.exec, RETRY_DELAY);
@@ -40,15 +40,27 @@ function _callback(err, response, body) {
 }
 
 /**
- * Check if the response code is one that warrants a retry.
+ * Check if response meets a condition where we should attempt a retry.
  */
-function isRetryCode(obj, code) {
-  if (obj.retryCodes && obj.retryCodes.indexOf(code) >= 0) {
-    return true;
-  }
-  else {
+function isRetryCondition(obj, response, body) {
+  if (obj.retryConditions.length == 0) {
     return false;
   }
+
+  for (var i = 0; i < obj.retryConditions.length; i++) {
+    if (typeof obj.retryConditions[i] === 'number') {
+      if (response != null && obj.retryConditions[i] == response.statusCode) {
+        return true;
+      }
+    }
+    else if (typeof obj.retryConditions[i] === 'function') {
+      if (obj.retryConditions[i](response, body)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -73,14 +85,14 @@ RequestRetry.setRetryDelay = function(delay) {
 }
 
 /**
- * Set the array of response codes that warrant a retry.
+ * Set the array of response codes and functions that warrant a retry.
  */
-RequestRetry.prototype.setRetryCodes = function(codes) {
-  if (typeof codes !== 'object' || !codes || codes.length == 0) {
+RequestRetry.prototype.setRetryConditions = function(conditions) {
+  if (typeof conditions !== 'object' || !conditions || conditions.length == 0) {
     return;
   }
 
-  this.retryCodes = codes;
+  this.retryConditions = conditions;
 }
 
 /**
@@ -117,9 +129,9 @@ if (process.env.NODE_ENV === 'test') {
     return RETRY_DELAY;
   }
 
-  RequestRetry.isRetryCode = isRetryCode;
+  RequestRetry.isRetryCondition = isRetryCondition;
 
-  RequestRetry.prototype.getRetryCodes = function() {
-    return this.retryCodes;
+  RequestRetry.prototype.getRetryConditions = function() {
+    return this.retryConditions;
   }
 }
