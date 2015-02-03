@@ -8,8 +8,20 @@ var RequestRetry = require('node-request-retry');
 
 var requestRetry = new RequestRetry();
 
-// Retry if the response received is one of the following codes
-requestRetry.setRetryCodes([400, 404, 408, 500]);
+var retryConditions = [];
+// Retries can be triggered by either receiving a certain status code
+Array.prototype.push.apply(retryConditions, [400, 404, 408, 500]);
+
+// ... or by evaluating a function. Returning true means the request should be retried.
+var fnShouldRetry = function(response, body) {
+  if (body == false)
+    return true;
+  else
+    return false;
+};
+retryConditions[retryConditions.length] = fnShouldRetry;
+
+requestRetry.setRetryCodes(retryConditions);
 
 // POST
 requestRetry.post(url, postData, function(err, response, body) {
